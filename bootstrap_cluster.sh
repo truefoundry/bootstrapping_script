@@ -69,15 +69,15 @@ check_istio_crds_installed() {
 }
 
 check_tfy_agent() {
+    counter=0
     while True
     do
-        counter=0
         agent_pods=$(kubectl get pods -n tfy-agent -l app.kubernetes.io/name=tfy-agent -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep 'Running' | wc -l)
         if [[ $agent_pods -ge 1 ]]
         then
             print_green "Agent installed successfully"
             break
-        elif [[ $counter -ge 10 ]]
+        elif [[ $counter -ge 20 ]]
         then
             print_red "Agent is not in the running state yet. Exiting"
             exit 1
@@ -105,14 +105,47 @@ install_helm_chart_with_values() {
 
 
 install_argocd_helm_chart() {
-    helm install argocd argo/argo-cd --version 5.16.13 \
-    --namespace argocd --create-namespace --wait \
-    --set applicationSet.enabled=false \
-    --set notifications.enabled=false \
-    --set dex.enabled=false \
-    --set server.extraArgs[0]="--insecure" \
-    --set server.extraArgs[1]='--application-namespaces="*"' \
-    --set controller.extraArgs[0]='--application-namespaces="*"'
+
+    if [[ $cluster_type == "azure-aks" ]]
+    then
+        helm install argocd argo/argo-cd --version 5.16.13 \
+        --namespace argocd --create-namespace --wait \
+        --set controller.tolerations[0].key="CriticalAddonsOnly" \
+        --set-string controller.tolerations[0].value=true \
+        --set controller.tolerations[0].effect=NoSchedule \
+        --set controller.tolerations[0].operator=Equal \
+        --set redis.tolerations[0].key="CriticalAddonsOnly" \
+        --set-string redis.tolerations[0].value=true \
+        --set redis.tolerations[0].effect=NoSchedule \
+        --set redis.tolerations[0].operator=Equal \
+        --set server.tolerations[0].key="kubernetes.azure.com/scalesetpriority" \
+        --set-string server.tolerations[0].value=spot \
+        --set server.tolerations[0].effect=NoSchedule \
+        --set server.tolerations[0].operator=Equal \
+        --set repoServer.tolerations[0].key="kubernetes.azure.com/scalesetpriority" \
+        --set-string repoServer.tolerations[0].value=spot \
+        --set repoServer.tolerations[0].effect=NoSchedule \
+        --set repoServer.tolerations[0].operator=Equal \
+        --set applicationSet.tolerations[0].key="CriticalAddonsOnly" \
+        --set-string applicationSet.tolerations[0].value=true \
+        --set applicationSet.tolerations[0].effect=NoSchedule \
+        --set applicationSet.tolerations[0].operator=Equal \
+        --set applicationSet.enabled=false \
+        --set notifications.enabled=false \
+        --set dex.enabled=false \
+        --set server.extraArgs[0]="--insecure" \
+        --set server.extraArgs[1]='--application-namespaces="*"' \
+        --set controller.extraArgs[0]='--application-namespaces="*"'
+    else
+        helm install argocd argo/argo-cd --version 5.16.13 \
+        --namespace argocd --create-namespace --wait \
+        --set applicationSet.enabled=false \
+        --set notifications.enabled=false \
+        --set dex.enabled=false \
+        --set server.extraArgs[0]="--insecure" \
+        --set server.extraArgs[1]='--application-namespaces="*"' \
+        --set controller.extraArgs[0]='--application-namespaces="*"'
+    fi
     if [[ ${?} -eq 0 ]]
     then
         print_green "Argocd Installed successfully. Continuing ..."
@@ -235,7 +268,7 @@ installation_guide() {
         print_yellow "Skipping argocd installation."
     else
     helm repo add argo https://argoproj.github.io/argo-helm
-    install_argocd_helm_chart
+    install_argocd_helm_chart "$cluster_type"
     install_argo_charts "$cluster_type"
     sleep 2
     fi
