@@ -77,7 +77,7 @@ check_tfy_agent() {
         then
             print_green "Agent installed successfully"
             break
-        elif [[ $counter -ge 20 ]]
+        elif [[ $counter -ge 30 ]]
         then
             print_red "Agent is not in the running state yet. Exiting"
             exit 1
@@ -149,8 +149,6 @@ install_argocd_helm_chart() {
     if [[ ${?} -eq 0 ]]
     then
         print_green "Argocd Installed successfully. Continuing ..."
-        output=$(kubectl get pods -n argocd)
-        print_green $output
         sleep 5
     else
         print_red "Argocd failed to install"
@@ -202,7 +200,7 @@ install_istio_dependencies() {
                     sleep 5
                     print_green "istio-discovery is installed successfully"
                     break
-                elif [[ $counter -ge 5 ]]
+                elif [[ $counter -ge 10 ]]
                 then
                     print_green "istio-discovery not installed yet"
                     break
