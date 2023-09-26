@@ -70,10 +70,10 @@ check_istio_crds_installed() {
 
 check_tfy_agent() {
     counter=0
-    while True
+    while :
     do
         agent_pods=$(kubectl get pods -n tfy-agent -l app.kubernetes.io/name=tfy-agent -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep 'Running' | wc -l)
-        if [[ $agent_pods -ge 1 ]]
+        if [[ $agent_pods -ge 2 ]]
         then
             print_green "Agent installed successfully"
             break
@@ -84,7 +84,7 @@ check_tfy_agent() {
         else
             print_yellow "Waiting for agent pods to come up ..."
         fi
-        ((counter++))
+        ((counter+=1))
         sleep 5
     done
 }
@@ -192,7 +192,7 @@ install_istio_dependencies() {
         if [[ $istio_dependency == 'istio-discovery' ]]
         then
             counter=0
-            while True 
+            while : 
             do
                 istio_pods=$(kubectl get pods -n istio-system -l app=istiod -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep Running | wc -l)
                 if [[ $istio_pods -ge 2 ]]
@@ -207,7 +207,7 @@ install_istio_dependencies() {
                 else
                     print_yellow "Waiting for istio-discovery pods to come up ..."
                 fi
-                ((counter++))
+                ((counter+=1))
                 sleep 5
             done
         fi
