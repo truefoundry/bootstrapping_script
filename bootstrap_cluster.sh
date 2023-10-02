@@ -73,7 +73,7 @@ check_tfy_agent() {
     while :
     do
         agent_pods=$(kubectl get pods -n tfy-agent -l app.kubernetes.io/name=tfy-agent -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep 'Running' | wc -l)
-        if [[ $agent_pods -ge 2 ]]
+        if [[ $agent_pods -ge 1 ]]
         then
             print_green "Agent installed successfully"
             break
