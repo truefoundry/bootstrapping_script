@@ -158,7 +158,7 @@ install_argocd_helm_chart() {
 
 install_argo_charts() {
     local cluster_type=$1
-    local argo_charts=('argocd' 'argo-rollouts')
+    local argo_charts=('argocd' 'argo-rollouts', 'argo-workflows')
 
     for argo_chart in "${argo_charts[@]}"; do
         response=$(curl --silent "https://catalogue.truefoundry.com/$cluster_type/templates/$argo_chart.yaml")
