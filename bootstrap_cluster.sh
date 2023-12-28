@@ -154,6 +154,26 @@ install_argocd_helm_chart() {
         print_red "Argocd failed to install"
         exit 2
     fi
+
+    print_yellow "Applying tfy-apps AppProject..."
+    k apply -f -<<EOF
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: tfy-apps
+  namespace: argocd
+spec:
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  destinations:
+    - namespace: '*'
+      server: '*'
+  sourceNamespaces:
+    - '*'
+  sourceRepos:
+    - '*'
+EOF
 }
 
 install_argo_charts() {
@@ -265,10 +285,10 @@ installation_guide() {
         # ArgoCD CRDs are already installed, skip the entire ArgoCD installation
         print_yellow "Skipping argocd installation."
     else
-    helm repo add argo https://argoproj.github.io/argo-helm
-    install_argocd_helm_chart "$cluster_type"
-    install_argo_charts "$cluster_type"
-    sleep 2
+        helm repo add argo https://argoproj.github.io/argo-helm
+        install_argocd_helm_chart "$cluster_type"
+        install_argo_charts "$cluster_type"
+        sleep 2
     fi
 
     install_istio_dependencies "$cluster_type"
