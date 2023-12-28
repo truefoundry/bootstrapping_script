@@ -156,7 +156,7 @@ install_argocd_helm_chart() {
     fi
 
     print_yellow "Applying tfy-apps AppProject..."
-    k apply -f -<<EOF
+    kubectl apply -f -<<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
