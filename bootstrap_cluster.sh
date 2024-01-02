@@ -186,9 +186,8 @@ install_argo_charts() {
     for argo_chart in "${argo_charts[@]}"; do
         response=$(curl --silent "https://catalogue.truefoundry.com/$cluster_type/templates/$argo_chart.yaml")
         echo "$response" > /tmp/application.yaml
-        
-        namespace_exists=$(kubectl get namespace $argo_chart 2>/dev/null)
-        if [[ ! -n "$namespace_exists" ]]
+        namespace_exists=$(kubectl get namespaces | grep $argo_chart | wc -l)
+        if [[ "$namespace_exists" -eq 0 ]]
         then
             kubectl create namespace $argo_chart
         fi
@@ -215,8 +214,8 @@ install_istio_dependencies() {
         response=$(curl --silent "https://catalogue.truefoundry.com/$cluster_type/templates/istio/$istio_dependency.yaml")
         echo "$response" > /tmp/application.yaml
 
-        namespace_exists=$(kubectl get namespace $istio_namespace 2>/dev/null)
-        if [[ ! -n "$namespace_exists" ]]
+        namespace_exists=$(kubectl get namespaces | grep $istio_namespace | wc -l)
+        if [[ "$namespace_exists" -eq 0 ]]
         then
             kubectl create namespace $istio_namespace
         fi        
@@ -269,8 +268,8 @@ install_tfy_agent() {
         sed -i "s#\(\s*controlPlaneURL:\s*\).*#\1 $control_plane_url#" /tmp/application.yaml
     fi
     
-    namespace_exists=$(kubectl get namespace $tfy_agent_namespace 2>/dev/null)
-    if [[ ! -n "$namespace_exists" ]]
+    namespace_exists=$(kubectl get namespaces | grep $tfy_agent_namespace | wc -l)
+    if [[ "$namespace_exists" -eq 0 ]]
     then
         kubectl create namespace $tfy_agent_namespace
     fi 
