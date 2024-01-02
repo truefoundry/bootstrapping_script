@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+tfy_agent_namespace='tfy-agent'
+istio_namespace='istio-system'
+
 print_green() {
     echo "$(tput setaf 2)$1$(tput sgr0)"
 }
@@ -72,7 +75,7 @@ check_tfy_agent() {
     counter=0
     while :
     do
-        agent_pods=$(kubectl get pods -n tfy-agent -l app.kubernetes.io/name=tfy-agent -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep 'Running' | wc -l)
+        agent_pods=$(kubectl get pods -n $tfy_agent_namespace -l app.kubernetes.io/name=tfy-agent -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep 'Running' | wc -l)
         if [[ $agent_pods -ge 1 ]]
         then
             print_green "Agent installed successfully"
@@ -154,6 +157,26 @@ install_argocd_helm_chart() {
         print_red "Argocd failed to install"
         exit 2
     fi
+
+    print_yellow "Applying tfy-apps AppProject..."
+    kubectl apply -f -<<EOF
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: tfy-apps
+  namespace: argocd
+spec:
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  destinations:
+    - namespace: '*'
+      server: '*'
+  sourceNamespaces:
+    - '*'
+  sourceRepos:
+    - '*'
+EOF
 }
 
 install_argo_charts() {
@@ -163,8 +186,12 @@ install_argo_charts() {
     for argo_chart in "${argo_charts[@]}"; do
         response=$(curl --silent "https://catalogue.truefoundry.com/$cluster_type/templates/$argo_chart.yaml")
         echo "$response" > /tmp/application.yaml
-        
-        kubectl apply -f /tmp/application.yaml -n argocd
+        namespace_exists=$(kubectl get namespaces | grep $argo_chart | wc -l)
+        if [[ "$namespace_exists" -eq 0 ]]
+        then
+            kubectl create namespace $argo_chart
+        fi
+        kubectl apply -f /tmp/application.yaml -n $argo_chart
         rm -f /tmp/application.yaml
     done
 }
@@ -186,15 +213,21 @@ install_istio_dependencies() {
         print_yellow "Installing ${istio_dependency}..."
         response=$(curl --silent "https://catalogue.truefoundry.com/$cluster_type/templates/istio/$istio_dependency.yaml")
         echo "$response" > /tmp/application.yaml
+
+        namespace_exists=$(kubectl get namespaces | grep $istio_namespace | wc -l)
+        if [[ "$namespace_exists" -eq 0 ]]
+        then
+            kubectl create namespace $istio_namespace
+        fi        
         
-        kubectl apply -f /tmp/application.yaml -n argocd
+        kubectl apply -f /tmp/application.yaml -n $istio_namespace
         sleep 1
         if [[ $istio_dependency == 'istio-discovery' ]]
         then
             counter=0
             while : 
             do
-                istio_pods=$(kubectl get pods -n istio-system -l app=istiod -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep Running | wc -l)
+                istio_pods=$(kubectl get pods -n $istio_namespace -l app=istiod -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep Running | wc -l)
                 if [[ $istio_pods -ge 2 ]]
                 then
                     sleep 5
@@ -235,7 +268,13 @@ install_tfy_agent() {
         sed -i "s#\(\s*controlPlaneURL:\s*\).*#\1 $control_plane_url#" /tmp/application.yaml
     fi
     
-    kubectl apply -f /tmp/application.yaml -n argocd
+    namespace_exists=$(kubectl get namespaces | grep $tfy_agent_namespace | wc -l)
+    if [[ "$namespace_exists" -eq 0 ]]
+    then
+        kubectl create namespace $tfy_agent_namespace
+    fi 
+
+    kubectl apply -f /tmp/application.yaml -n $tfy_agent_namespace
 
     rm -f /tmp/application.yaml
 }
@@ -265,10 +304,10 @@ installation_guide() {
         # ArgoCD CRDs are already installed, skip the entire ArgoCD installation
         print_yellow "Skipping argocd installation."
     else
-    helm repo add argo https://argoproj.github.io/argo-helm
-    install_argocd_helm_chart "$cluster_type"
-    install_argo_charts "$cluster_type"
-    sleep 2
+        helm repo add argo https://argoproj.github.io/argo-helm
+        install_argocd_helm_chart "$cluster_type"
+        install_argo_charts "$cluster_type"
+        sleep 2
     fi
 
     install_istio_dependencies "$cluster_type"
