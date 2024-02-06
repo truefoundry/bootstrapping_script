@@ -3,6 +3,7 @@ set -e
 
 tfy_agent_namespace='tfy-agent'
 istio_namespace='istio-system'
+argocd_version='5.52.1'
 
 print_green() {
     echo "$(tput setaf 2)$1$(tput sgr0)"
@@ -111,7 +112,7 @@ install_argocd_helm_chart() {
 
     if [[ $cluster_type == "azure-aks" ]]
     then
-        helm install argocd argo/argo-cd --version 5.16.13 \
+        helm install argocd argo/argo-cd --version "$argocd_version" \
         --namespace argocd --create-namespace --wait \
         --set controller.tolerations[0].key="CriticalAddonsOnly" \
         --set-string controller.tolerations[0].value=true \
@@ -140,7 +141,7 @@ install_argocd_helm_chart() {
         --set server.extraArgs[1]='--application-namespaces="*"' \
         --set controller.extraArgs[0]='--application-namespaces="*"'
     else
-        helm install argocd argo/argo-cd --version 5.16.13 \
+        helm install argocd argo/argo-cd --version "$argocd_version" \
         --namespace argocd --create-namespace --wait \
         --set applicationSet.enabled=false \
         --set notifications.enabled=false \
