@@ -344,7 +344,7 @@ if [ $# == 3 ]; then
     print_yellow "Control plane URL inferred as $control_plane_url"
 fi
 
-if [ $# == 4 ]; then
+if [ $# -ge 4 ]; then
     control_plane_url="$4"
     if [[ ! $control_plane_url =~ ^(https?://).* ]]; then
         control_plane_url="https://$control_plane_url"
