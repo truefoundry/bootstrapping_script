@@ -212,7 +212,6 @@ restart_argocd_if_needed() {
 
 install_istio_dependencies() {
     local cluster_type=$1
-    local skip_test=$2
     local istio_dependencies=('istio-base' 'istio-discovery' 'tfy-istio-ingress');
 
     for istio_dependency in "${istio_dependencies[@]}"; do
@@ -228,7 +227,7 @@ install_istio_dependencies() {
         
         kubectl apply -f /tmp/application.yaml -n $istio_namespace
         sleep 1
-        if [[ $istio_dependency == 'istio-discovery' && $skip_test == "false" ]]
+        if [[ $istio_dependency == 'istio-discovery' ]]
         then
             counter=0
             while : 
@@ -317,7 +316,7 @@ installation_guide() {
         sleep 2
     fi
 
-    install_istio_dependencies "$cluster_type" "$skip_test"
+    install_istio_dependencies "$cluster_type"
 
     # Guide the user through installing Tfy-agent chart
     print_yellow "Next, we'll install the tfy-agent chart..."
