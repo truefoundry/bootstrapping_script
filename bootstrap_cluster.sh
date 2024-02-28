@@ -73,24 +73,28 @@ check_istio_crds_installed() {
 }
 
 check_tfy_agent() {
+    local skip_test=$1
     counter=0
-    while :
-    do
-        agent_pods=$(kubectl get pods -n $tfy_agent_namespace -l app.kubernetes.io/name=tfy-agent -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep 'Running' | wc -l)
-        if [[ $agent_pods -ge 1 ]]
-        then
-            print_green "Agent installed successfully"
-            break
-        elif [[ $counter -ge 30 ]]
-        then
-            print_red "Agent is not in the running state yet. Exiting"
-            exit 1
-        else
-            print_yellow "Waiting for agent pods to come up ..."
-        fi
-        ((counter+=1))
-        sleep 5
-    done
+    if [[ $skip_test == "false" ]]
+    then
+        while :
+        do
+            agent_pods=$(kubectl get pods -n $tfy_agent_namespace -l app.kubernetes.io/name=tfy-agent -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep 'Running' | wc -l)
+            if [[ $agent_pods -ge 1 ]]
+            then
+                print_green "Agent installed successfully"
+                break
+            elif [[ $counter -ge 30 ]]
+            then
+                print_red "Agent is not in the running state yet. Exiting"
+                exit 1
+            else
+                print_yellow "Waiting for agent pods to come up ..."
+            fi
+            ((counter+=1))
+            sleep 5
+        done
+    fi
 }
 
 install_helm_chart_with_values() {
@@ -208,6 +212,7 @@ restart_argocd_if_needed() {
 
 install_istio_dependencies() {
     local cluster_type=$1
+    local skip_test=$2
     local istio_dependencies=('istio-base' 'istio-discovery' 'tfy-istio-ingress');
 
     for istio_dependency in "${istio_dependencies[@]}"; do
@@ -223,7 +228,7 @@ install_istio_dependencies() {
         
         kubectl apply -f /tmp/application.yaml -n $istio_namespace
         sleep 1
-        if [[ $istio_dependency == 'istio-discovery' ]]
+        if [[ $istio_dependency == 'istio-discovery' && $skip_test == "false" ]]
         then
             counter=0
             while : 
@@ -286,6 +291,7 @@ installation_guide() {
     local cluster_type=$2
     local cluster_token=$3
     local control_plane_url=$4
+    local skip_test=$5
 
     print_yellow "Starting TrueFoundry agent installation..."
     
@@ -311,14 +317,14 @@ installation_guide() {
         sleep 2
     fi
 
-    install_istio_dependencies "$cluster_type"
+    install_istio_dependencies "$cluster_type" "$skip_test"
 
     # Guide the user through installing Tfy-agent chart
     print_yellow "Next, we'll install the tfy-agent chart..."
     helm repo add truefoundry https://truefoundry.github.io/infra-charts/
     install_tfy_agent "$cluster_type" "$tenant_name" "$cluster_token" "$control_plane_url"
 
-    check_tfy_agent
+    check_tfy_agent "$skip_test"
 
     restart_argocd_if_needed
     # Completion message
@@ -346,4 +352,4 @@ if [ $# == 4 ]; then
     fi
 fi
 
-installation_guide "$1" "$2" "$3" "$control_plane_url"
+installation_guide "$1" "$2" "$3" "$control_plane_url" "${5:-"false"}"
