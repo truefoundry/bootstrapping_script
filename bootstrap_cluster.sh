@@ -73,24 +73,28 @@ check_istio_crds_installed() {
 }
 
 check_tfy_agent() {
+    local skip_test=$1
     counter=0
-    while :
-    do
-        agent_pods=$(kubectl get pods -n $tfy_agent_namespace -l app.kubernetes.io/name=tfy-agent -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep 'Running' | wc -l)
-        if [[ $agent_pods -ge 1 ]]
-        then
-            print_green "Agent installed successfully"
-            break
-        elif [[ $counter -ge 30 ]]
-        then
-            print_red "Agent is not in the running state yet. Exiting"
-            exit 1
-        else
-            print_yellow "Waiting for agent pods to come up ..."
-        fi
-        ((counter+=1))
-        sleep 5
-    done
+    if [[ $skip_test == "false" ]]
+    then
+        while :
+        do
+            agent_pods=$(kubectl get pods -n $tfy_agent_namespace -l app.kubernetes.io/name=tfy-agent -o custom-columns=:.metadata.name,.:.status.phase --no-headers | grep 'Running' | wc -l)
+            if [[ $agent_pods -ge 1 ]]
+            then
+                print_green "Agent installed successfully"
+                break
+            elif [[ $counter -ge 30 ]]
+            then
+                print_red "Agent is not in the running state yet. Exiting"
+                exit 1
+            else
+                print_yellow "Waiting for agent pods to come up ..."
+            fi
+            ((counter+=1))
+            sleep 5
+        done
+    fi
 }
 
 install_helm_chart_with_values() {
@@ -286,6 +290,7 @@ installation_guide() {
     local cluster_type=$2
     local cluster_token=$3
     local control_plane_url=$4
+    local skip_test=$5
 
     print_yellow "Starting TrueFoundry agent installation..."
     
@@ -318,7 +323,7 @@ installation_guide() {
     helm repo add truefoundry https://truefoundry.github.io/infra-charts/
     install_tfy_agent "$cluster_type" "$tenant_name" "$cluster_token" "$control_plane_url"
 
-    check_tfy_agent
+    check_tfy_agent "$skip_test"
 
     restart_argocd_if_needed
     # Completion message
@@ -339,11 +344,11 @@ if [ $# == 3 ]; then
     print_yellow "Control plane URL inferred as $control_plane_url"
 fi
 
-if [ $# == 4 ]; then
+if [ $# -ge 4 ]; then
     control_plane_url="$4"
     if [[ ! $control_plane_url =~ ^(https?://).* ]]; then
         control_plane_url="https://$control_plane_url"
     fi
 fi
 
-installation_guide "$1" "$2" "$3" "$control_plane_url"
+installation_guide "$1" "$2" "$3" "$control_plane_url" "${5:-"false"}"
